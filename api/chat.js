@@ -1,12 +1,12 @@
-// Vercel 서버리스 함수: xAI Grok API 프록시
-// 브라우저는 XAI_API_KEY를 절대 보지 못하며, 이 함수가 대신 Grok을 호출한다.
+// Vercel 서버리스 함수: Groq API 프록시 (무료)
+// 브라우저는 GROQ_API_KEY를 절대 보지 못하며, 이 함수가 대신 Groq을 호출한다.
 
-// 사용할 Grok 모델. 변경하고 싶으면 이 값만 바꾸면 된다.
-// (예: 'grok-3', 'grok-3-mini', 'grok-4', 'grok-2-latest')
-const MODEL = "grok-3";
+// 사용할 Groq 모델. 변경하고 싶으면 이 값만 바꾸면 된다.
+// (예: 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'gemma2-9b-it')
+const MODEL = "llama-3.3-70b-versatile";
 
-// xAI는 OpenAI 호환 엔드포인트를 제공한다.
-const XAI_ENDPOINT = "https://api.x.ai/v1/chat/completions";
+// Groq는 OpenAI 호환 엔드포인트를 제공한다.
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 
 // 입문자 가이드 특화 시스템 프롬프트 (한국어 중심)
 const SYSTEM_PROMPT = `당신은 'Salesforce 길잡이'라는 이름의 친절한 멘토 챗봇입니다.
@@ -34,11 +34,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST 요청만 지원합니다." });
   }
 
-  const apiKey = process.env.XAI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error:
-        "서버에 XAI_API_KEY가 설정되어 있지 않습니다. Vercel 환경변수에 키를 등록해 주세요.",
+        "서버에 GROQ_API_KEY가 설정되어 있지 않습니다. Vercel 환경변수에 키를 등록해 주세요.",
     });
   }
 
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
   };
 
   try {
-    const xaiRes = await fetch(XAI_ENDPOINT, {
+    const groqRes = await fetch(GROQ_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -86,13 +86,13 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload),
     });
 
-    const data = await xaiRes.json();
+    const data = await groqRes.json();
 
-    if (!xaiRes.ok) {
+    if (!groqRes.ok) {
       const message =
         (typeof data?.error === "string" ? data.error : data?.error?.message) ||
-        "Grok API 호출 중 오류가 발생했습니다.";
-      return res.status(xaiRes.status).json({ error: message });
+        "Groq API 호출 중 오류가 발생했습니다.";
+      return res.status(groqRes.status).json({ error: message });
     }
 
     const reply = data?.choices?.[0]?.message?.content?.trim() || "";
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply });
   } catch (err) {
     return res.status(500).json({
-      error: "서버에서 Grok API 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      error: "서버에서 Groq API 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     });
   }
 }

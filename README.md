@@ -1,7 +1,7 @@
 # ☁️ Salesforce 길잡이 — 입문자 가이드 챗봇
 
 Salesforce 생태계에 **처음 진입하는 입문자**(어드민 · 개발자 · 컨설턴트 · 슈퍼유저)를 위한
-AI 챗봇입니다. xAI **Grok API**로 답변을 생성하고, HTML 프론트엔드로 동작하며,
+AI 챗봇입니다. **Groq API**(무료)로 답변을 생성하고, HTML 프론트엔드로 동작하며,
 **Vercel**로 배포합니다.
 
 - 🎨 Salesforce 느낌의 UI (Salesforce 블루 `#00A1E0`)
@@ -18,7 +18,7 @@ salesforcechatbot/
 ├── public/
 │   └── index.html      # 챗봇 UI (단일 페이지, 순수 HTML/CSS/JS)
 ├── api/
-│   └── chat.js         # Vercel 서버리스 함수: Grok API 프록시
+│   └── chat.js         # Vercel 서버리스 함수: Groq API 프록시
 ├── vercel.json         # 라우팅 설정
 ├── package.json        # 메타데이터 (외부 의존성 없음)
 ├── .env.example        # 환경변수 예시
@@ -29,14 +29,14 @@ salesforcechatbot/
 
 ## 🔑 필요한 키
 
-xAI **Grok API 키** 1개가 필요합니다.
+**Groq API 키** 1개가 필요합니다. **무료**이며 카드 등록이 필요 없습니다.
 
-1. https://console.x.ai 접속 → 로그인
-2. **API Keys** 메뉴에서 키 생성 → 키 복사
-3. 이 키를 코드에 넣지 말고, 아래 Vercel 환경변수(`XAI_API_KEY`)로 등록합니다.
+1. https://console.groq.com 접속 → 로그인
+2. **API Keys** 메뉴에서 **Create API Key** → 키 복사
+3. 이 키를 코드에 넣지 말고, 아래 Vercel 환경변수(`GROQ_API_KEY`)로 등록합니다.
 
-> 참고: xAI는 사용량 기반(pay-as-you-go) 과금입니다. 콘솔에서 결제(크레딧) 등록이
-> 되어 있어야 호출이 동작합니다.
+> 참고: Groq 무료 티어에는 분당/일일 요청 수 제한(rate limit)이 있지만, 개인·입문용으로는
+> 충분합니다.
 
 ---
 
@@ -45,8 +45,8 @@ xAI **Grok API 키** 1개가 필요합니다.
 1. 이 저장소를 GitHub에 푸시합니다.
 2. [Vercel](https://vercel.com)에 로그인 → **Add New… → Project** → 이 저장소 **Import**.
 3. **Environment Variables**에 다음을 추가합니다.
-   - Name: `XAI_API_KEY`
-   - Value: *(xAI 콘솔에서 발급한 키)*
+   - Name: `GROQ_API_KEY`
+   - Value: *(Groq 콘솔에서 발급한 키)*
 4. **Deploy** 클릭. 배포가 끝나면 제공되는 URL에서 챗봇이 동작합니다.
 
 > 환경변수를 나중에 추가/변경했다면 **Redeploy** 해야 적용됩니다.
@@ -62,8 +62,8 @@ Vercel CLI로 서버리스 함수까지 함께 실행할 수 있습니다.
 npm i -g vercel
 
 # 2) 환경변수 설정 (둘 중 하나)
-#    - 프로젝트 루트에 .env 파일 생성 후 XAI_API_KEY=... 작성
-#    - 또는 셸에서: export XAI_API_KEY=...
+#    - 프로젝트 루트에 .env 파일 생성 후 GROQ_API_KEY=... 작성
+#    - 또는 셸에서: export GROQ_API_KEY=...
 
 # 3) 로컬 개발 서버 실행 (http://localhost:3000)
 vercel dev
@@ -76,11 +76,13 @@ vercel dev
 
 ## ⚙️ 모델 변경
 
-기본 모델은 `grok-3`입니다. `api/chat.js` 상단의 `MODEL` 상수만 바꾸면 됩니다.
+기본 모델은 `llama-3.3-70b-versatile`입니다. `api/chat.js` 상단의 `MODEL` 상수만 바꾸면 됩니다.
 
 ```js
-const MODEL = "grok-3"; // 예: "grok-3-mini", "grok-4", "grok-2-latest"
+const MODEL = "llama-3.3-70b-versatile"; // 예: "llama-3.1-8b-instant", "gemma2-9b-it"
 ```
+
+> 사용 가능한 모델 목록은 https://console.groq.com/docs/models 에서 확인할 수 있습니다.
 
 ---
 
