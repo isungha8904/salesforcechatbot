@@ -2,7 +2,7 @@
   "name": "salesforce-chatbot",
   "version": "1.0.0",
   "private": true,
-  "description": "Salesforce 입문자 가이드 챗봇 (Gemini API + Vercel)",
+  "description": "Salesforce 입문자 가이드 챗봇 (Grok API + Vercel)",
   "type": "module",
   "engines": {
     "node": ">=18"

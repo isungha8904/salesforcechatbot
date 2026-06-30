@@ -1,12 +1,12 @@
-// Vercel 서버리스 함수: Gemini API 프록시
-// 브라우저는 GEMINI_API_KEY를 절대 보지 못하며, 이 함수가 대신 Gemini를 호출한다.
+// Vercel 서버리스 함수: xAI Grok API 프록시
+// 브라우저는 XAI_API_KEY를 절대 보지 못하며, 이 함수가 대신 Grok을 호출한다.
 
-// 사용할 Gemini 모델. 변경하고 싶으면 이 값만 바꾸면 된다.
-// (예: 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro')
-const MODEL = "gemini-2.0-flash";
+// 사용할 Grok 모델. 변경하고 싶으면 이 값만 바꾸면 된다.
+// (예: 'grok-3', 'grok-3-mini', 'grok-4', 'grok-2-latest')
+const MODEL = "grok-3";
 
-const GEMINI_ENDPOINT = (model, key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+// xAI는 OpenAI 호환 엔드포인트를 제공한다.
+const XAI_ENDPOINT = "https://api.x.ai/v1/chat/completions";
 
 // 입문자 가이드 특화 시스템 프롬프트 (한국어 중심)
 const SYSTEM_PROMPT = `당신은 'Salesforce 길잡이'라는 이름의 친절한 멘토 챗봇입니다.
@@ -34,11 +34,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST 요청만 지원합니다." });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({
       error:
-        "서버에 GEMINI_API_KEY가 설정되어 있지 않습니다. Vercel 환경변수에 키를 등록해 주세요.",
+        "서버에 XAI_API_KEY가 설정되어 있지 않습니다. Vercel 환경변수에 키를 등록해 주세요.",
     });
   }
 
@@ -52,61 +52,57 @@ export default async function handler(req, res) {
     }
   }
 
-  const messages = Array.isArray(body?.messages) ? body.messages : [];
-  if (messages.length === 0) {
+  const clientMessages = Array.isArray(body?.messages) ? body.messages : [];
+  if (clientMessages.length === 0) {
     return res.status(400).json({ error: "messages가 비어 있습니다." });
   }
 
-  // 클라이언트 메시지를 Gemini contents 포맷으로 변환
-  // role: 'user' | 'model', parts: [{ text }]
-  const contents = messages
-    .filter((m) => m && typeof m.text === "string" && m.text.trim() !== "")
-    .map((m) => ({
-      role: m.role === "model" || m.role === "bot" ? "model" : "user",
-      parts: [{ text: m.text }],
-    }));
+  // 클라이언트 메시지를 OpenAI/xAI 포맷으로 변환.
+  // 시스템 프롬프트를 맨 앞에 두고, role: 'user' | 'assistant' 로 매핑한다.
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...clientMessages
+      .filter((m) => m && typeof m.text === "string" && m.text.trim() !== "")
+      .map((m) => ({
+        role: m.role === "model" || m.role === "bot" ? "assistant" : "user",
+        content: m.text,
+      })),
+  ];
 
   const payload = {
-    systemInstruction: {
-      parts: [{ text: SYSTEM_PROMPT }],
-    },
-    contents,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1024,
-    },
+    model: MODEL,
+    messages,
+    temperature: 0.7,
+    max_tokens: 1024,
   };
 
   try {
-    const geminiRes = await fetch(GEMINI_ENDPOINT(MODEL, apiKey), {
+    const xaiRes = await fetch(XAI_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify(payload),
     });
 
-    const data = await geminiRes.json();
+    const data = await xaiRes.json();
 
-    if (!geminiRes.ok) {
+    if (!xaiRes.ok) {
       const message =
-        data?.error?.message || "Gemini API 호출 중 오류가 발생했습니다.";
-      return res.status(geminiRes.status).json({ error: message });
+        (typeof data?.error === "string" ? data.error : data?.error?.message) ||
+        "Grok API 호출 중 오류가 발생했습니다.";
+      return res.status(xaiRes.status).json({ error: message });
     }
 
-    const reply =
-      data?.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text)
-        .filter(Boolean)
-        .join("\n") || "";
+    const reply = data?.choices?.[0]?.message?.content?.trim() || "";
 
     if (!reply) {
-      // 안전 필터 등으로 응답이 비어 있는 경우
-      const blockReason =
-        data?.promptFeedback?.blockReason ||
-        data?.candidates?.[0]?.finishReason;
+      const finishReason = data?.choices?.[0]?.finish_reason;
       return res.status(200).json({
         reply:
           "죄송해요, 답변을 생성하지 못했습니다." +
-          (blockReason ? ` (사유: ${blockReason})` : "") +
+          (finishReason ? ` (사유: ${finishReason})` : "") +
           " 질문을 조금 바꿔서 다시 시도해 주세요.",
       });
     }
@@ -114,7 +110,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ reply });
   } catch (err) {
     return res.status(500).json({
-      error: "서버에서 Gemini API 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      error: "서버에서 Grok API 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.",
     });
   }
 }
